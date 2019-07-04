@@ -1,39 +1,47 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3'
 
-const draw = (props) => {
+const draw = (props, opts) => {
+	//#region Variables
+	//options
+	let valueDesc, valueLabel;
+	let min, max, margin, totalPercent, width, height, className, labels;
+	//gauge vars
+	let barWidth, chart, chartInset, padRad, radius, svg, arcStartRad, arcEndRad;
+	//utility
+	let degToRad, percToRad, percToDeg, value2percent;
+	//#endregion
 
-	var barWidth, chart, chartInset, degToRad, /* repaintGauge, */
-		height, margin, /* numSections, */ padRad, percToDeg, percToRad,
-		percent, radius, svg, totalPercent, width, arcStartRad,
-		arcEndRad, max, min; /* sectionPerc */
-	min = props.min;
-	max = props.max;
-	percent = props.value;
-	// numSections = 1;
-	// sectionPerc = 1 / numSections / 2;
-	padRad = 0.025;
-	chartInset = 10;
-
-	// Orientation of gauge:
-	totalPercent = .75;
-	let el = d3.select('.gauge')
-
-	margin = {
+	//#region Options
+	let options = opts ? opts : {}
+	className = options.className || '.gauge'
+	max = options.max || 100;
+	min = options.min || 0;
+	margin = options.margin || {
 		top: 20,
 		right: 8,
 		bottom: 30,
 		left: 8
 	};
+	chartInset = options.chartInset || 10;
+	padRad = options.padRad || 0.025;
+	totalPercent = options.totalPercent || .75;
+	labels = options.labels || true;
+
+	//#endregion
+
+	let el = d3.select(className)
 	width = el['_groups'][0][0].offsetWidth;
 	height = el['_groups'][0][0].offsetHeight;
 	radius = Math.min(width, height) / 2;
 	barWidth = 40 * width / 300;
-	let labels = props.labels
 
-	/*
-    Utility methods 
-  */
+	//#region Utility methods
+
+	value2percent = function(value) {
+		return value > 0 ? (((value - min) * 100) / (max - min)) / 100 : 0
+	}
+
 	percToDeg = function (perc) {
 		return perc * 360;
 	};
@@ -46,17 +54,22 @@ const draw = (props) => {
 		return deg * Math.PI / 180;
 	};
 
+	//#endregion
+	
 	// Create SVG element
 	svg = el.append('svg').attr('width', width + margin.left + margin.right).attr('height', height + margin.top + margin.bottom).attr('position', 'relative');
 
 	// Add layer for the panel
 	chart = svg.append('g').attr('transform', "translate(" + ((width + margin.left + margin.right) / 2) + ", " + ((height - margin.top) / 2) + ")");
+
+	//Add the Arcs
 	chart.append('path').attr('class', "arc chart-filled");
 	if (props.dGauge) {
 		chart.append('path').attr('class', "arc chart-filled-2")
 	}
 	chart.append('path').attr('class', "arc chart-empty");
-	let valueDesc, valueLabel;
+	
+	//Add the text
 	if (labels) {
 		valueLabel = svg.append("text")
 			.attr('dominant-baseline', "middle")
@@ -79,21 +92,18 @@ const draw = (props) => {
 	}
 
 
-
+	//Generate Arc positions
 	let primaryArc, arcEmpty, secondaryArc;
 	primaryArc = d3.arc().outerRadius(radius - chartInset).innerRadius(radius - chartInset - barWidth)
 	arcEmpty = d3.arc().outerRadius(radius - chartInset).innerRadius(radius - chartInset - barWidth)
 	secondaryArc = d3.arc().outerRadius(radius - chartInset).innerRadius(radius - chartInset - barWidth)
 
+	//Generate instance
 	var Chart = (function () {
 		function Chart(el) {
 			this.el = el
 		}
-		function value2percent(value) {
-			console.log('Value', value)
-			console.log(value > 0 ? ((((value - min) * 100) / (max - min)) / 100) : 0)
-			return value > 0 ? (((value - min) * 100) / (max - min)) / 100 : 0
-		}
+
 		Chart.prototype.repaintGauge = function (value, prevValue) {
 			var next_start = totalPercent;
 			arcStartRad = percToRad(next_start);
@@ -121,13 +131,12 @@ const draw = (props) => {
 			this.el.select(".chart-filled-2").attr('d', secondaryArc);
 		};
 		Chart.prototype.moveTo = function (value, oldValue, value2, oldValue2, txt, prev) {
+			var self = this
 			let perc = value2percent(value)
 			let perc2 = value2percent(value2)
 			let oldPerc = value2percent(oldValue)
 			let oldPerc2 = value2percent(oldValue2)
-			// this.repaintGauge(perc, perc2)
-			console.log('Perc', perc, "Value", value)
-			var self = this
+
 			if (labels) {
 				valueLabel.text(parseFloat(prev ? value2 : value).toFixed(3))
 				valueDesc.text(txt)
@@ -179,7 +188,7 @@ function ReactGauge(props) {
 
 	return (
 
-		<div className={'gauge'} onClick={() => {
+		<div chartId={props.chartId} className={'gauge'} onClick={() => {
 			setPrevSee(!prevSee)
 		}} />
 
